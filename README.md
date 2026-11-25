@@ -12,13 +12,12 @@ playback.
 
 Works with a real JACK server (jackd) and with PipeWire's JACK layer.
 
-> **Status: early.** Tested on one setup (MuseScore 4 with PipeWire and
-> Ardour). Expect rough edges. See [Limitations](#limitations).
+> **Status: early.** Tested on one setup (MuseScore 4 with PipeWire).
+> Expect rough edges. See [Limitations](#limitations).
 
 ## Requirements
 
-- A MuseScore 4 build that can load **VST3 plugins on Linux**. The official
-  Linux builds cannot; a build with Linux VST3 support is needed.
+- A MuseScore 4 (>= 4.6)
 - JACK or PipeWire (with its JACK support) running.
 - To build: JUCE, CMake 3.22 or newer, a C++17 compiler, and the JACK
   development headers (`libjack-jackd2-dev` on Debian/Ubuntu). Only the
@@ -36,10 +35,6 @@ cmake --build build --target MuseScoreJACKBridge_VST3 --parallel
 Copy the resulting `MuseScoreJACKBridge.vst3` folder (it is below
 `build/MuseScoreJACKBridge_artefacts/`) to `~/.vst3/`.
 
-The repository also contains a GitHub Actions workflow that builds the plugin
-on Ubuntu 24.04. Start it from the **Actions** tab and download the zip from
-the run's artifacts.
-
 ## Use
 
 1. Load **MuseScoreJACKBridge** as the sound of an instrument in MuseScore.
@@ -56,9 +51,6 @@ Tick **Control JACK transport** in the plugin window. MuseScore's play, stop
 and position are then sent to JACK transport. Only **one** instance can do
 this; ticking it in another instance takes it over. It is off by default.
 
-In Ardour, choose JACK Transport as the transport master (**Window >
-Transport Masters**) so that it follows.
-
 ## Notes
 
 - Only MIDI messages up to 3 bytes are forwarded; SysEx is not.
@@ -71,8 +63,6 @@ Transport Masters**) so that it follows.
 
 ## Limitations
 
-- MIDI events are written at the start of each JACK period, so timing inside
-  a period is not preserved.
 - No tempo or bar information is sent to JACK (no timebase).
 - Not tested with many instances or long sessions.
 
