@@ -67,6 +67,13 @@ target_compile_definitions(
         JUCE_VST3_CAN_REPLACE_VST2=0
 )
 
+# Only the JACK headers are needed: libjack itself is loaded with dlopen.
+target_include_directories(
+    MuseScoreJACKBridge
+    PRIVATE
+        ${JACK_INCLUDE_DIRS}
+)
+
 target_link_libraries(
     MuseScoreJACKBridge
     PRIVATE

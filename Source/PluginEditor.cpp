@@ -6,7 +6,7 @@ MuseScoreBridgeEditor::MuseScoreBridgeEditor(
     : AudioProcessorEditor(&p),
       processor(p)
 {
-    setSize(400, 260);
+    setSize(400, 300);
 
     titleLabel.setText(
         "MuseScore JACK Bridge",
@@ -61,27 +61,27 @@ MuseScoreBridgeEditor::MuseScoreBridgeEditor(
         juce::Colours::grey
     );
 
-    channelNameEditor.onReturnKey = [this]()
-    {
-        processor.setChannelName(
-            channelNameEditor.getText()
-        );
-        
-        processor.updateHostDisplay(
-            juce::AudioProcessor::ChangeDetails()
-                .withNonParameterStateChanged(true)
-        );
-
-        processor.applyChannelName();
-
-        timerCallback();
-    };
+    // Commit on Return, Tab/click-away and window close, not just Return.
+    channelNameEditor.onReturnKey = [this]() { commitName(); };
+    channelNameEditor.onFocusLost = [this]() { commitName(); };
 
     addAndMakeVisible(channelNameEditor);
 
+    transportToggle.setToggleState(
+        processor.isTransportMaster(),
+        juce::dontSendNotification
+    );
+
+    transportToggle.onClick = [this]()
+    {
+        processor.setTransportMaster(transportToggle.getToggleState());
+    };
+
+    addAndMakeVisible(transportToggle);
+
     reconnectButton.onClick = [this]()
     {
-        processor.connectToJack();
+        processor.reconnectToJack();
         timerCallback();
     };
 
@@ -95,6 +95,17 @@ MuseScoreBridgeEditor::MuseScoreBridgeEditor(
 MuseScoreBridgeEditor::~MuseScoreBridgeEditor()
 {
     stopTimer();
+}
+
+void MuseScoreBridgeEditor::commitName()
+{
+    const auto text = channelNameEditor.getText().trim();
+
+    if (text.isEmpty() || text == processor.getChannelName())
+        return;
+
+    processor.setChannelName(text);
+    timerCallback();
 }
 
 void MuseScoreBridgeEditor::paint(
@@ -143,6 +154,10 @@ void MuseScoreBridgeEditor::resized()
         area.removeFromTop(30)
     );
 
+    transportToggle.setBounds(
+        area.removeFromTop(26)
+    );
+
     area.removeFromTop(10);
 
     reconnectButton.setBounds(
@@ -155,10 +170,18 @@ void MuseScoreBridgeEditor::resized()
 
 void MuseScoreBridgeEditor::timerCallback()
 {
+    // Another instance may have taken over the transport.
+    transportToggle.setToggleState(
+        processor.isTransportMaster(),
+        juce::dontSendNotification
+    );
+
     if (processor.isJackConnected())
     {
+        // Show the name JACK really registered; it can differ from the
+        // requested one (e.g. a "-01" suffix when the name is taken).
         statusLabel.setText(
-            "JACK: Connected",
+            "JACK: " + processor.getActualJackName(),
             juce::dontSendNotification
         );
 
@@ -185,6 +208,7 @@ void MuseScoreBridgeEditor::timerCallback()
             + juce::String(
                 static_cast<juce::int64>(
                     processor.getDroppedEvents()
+                    + processor.getJackWriteFailures()
                 )
             ),
         juce::dontSendNotification

@@ -31,9 +31,15 @@ private:
     juce::Label channelNameLabel;
     juce::TextEditor channelNameEditor;
 
+    juce::ToggleButton transportToggle{
+        "Control JACK transport (only one instance can)"
+    };
+
     juce::TextButton reconnectButton{
         "Reconnect JACK"
     };
+
+    void commitName();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(
         MuseScoreBridgeEditor
