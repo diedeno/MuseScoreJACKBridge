@@ -17,7 +17,7 @@ Works with a real JACK server (jackd) and with PipeWire's JACK layer.
 
 ## Requirements
 
-- A MuseScore 4 (>= 4.6)
+- MuseScore 4 (>= 4.6)
 - JACK or PipeWire (with its JACK support) running.
 - To build: JUCE, CMake 3.22 or newer, a C++17 compiler, and the JACK
   development headers (`libjack-jackd2-dev` on Debian/Ubuntu). Only the
