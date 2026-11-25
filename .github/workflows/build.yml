@@ -1,11 +1,12 @@
 name: Build VST3
-on: [push, pull_request, workflow_dispatch]
+on:
+  workflow_dispatch:
 
 jobs:
   linux:
     runs-on: ubuntu-24.04
     env:
-      JUCE_TAG: "8.0.12"   # set this to the tag of your local JUCE: git -C /path/to/JUCE describe --tags
+      JUCE_TAG: "9.0.6"   
     steps:
       - uses: actions/checkout@v4
 
