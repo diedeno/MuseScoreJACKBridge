@@ -210,7 +210,9 @@ void MuseScoreBridgeEditor::timerCallback()
                     processor.getDroppedEvents()
                     + processor.getJackWriteFailures()
                 )
-            ),
+            )
+            + "   |   Seeks detected: "
+            + juce::String(processor.getSeekCount()),
         juce::dontSendNotification
     );
 }

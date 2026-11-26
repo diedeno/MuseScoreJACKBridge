@@ -315,9 +315,23 @@ void MuseScoreBridgeProcessor::processBlock(
                         ? lastHostSamples + numSamples
                         : lastHostSamples;
 
+                // The reported position is not guaranteed to advance by
+                // exactly one block per call (hosts round, MuseScore keeps
+                // its own clock). Treat only a clear discontinuity as a
+                // seek: more than two blocks or 0.1 s, whichever is larger.
+                // A too-small limit would flush all notes on every block
+                // and make everything sound staccato.
+                const int64_t seekLimit = std::max<int64_t>(
+                    static_cast<int64_t>(numSamples) * 2,
+                    static_cast<int64_t>(hostRate * 0.1)
+                );
+
                 const bool jumped =
                     !firstBlock
-                    && std::llabs(hostSamples - expected) > 2;
+                    && std::llabs(hostSamples - expected) > seekLimit;
+
+                if (jumped)
+                    seekCount.fetch_add(1, std::memory_order_relaxed);
 
                 // Always locate before starting so JACK starts in the right
                 // place on a rising edge.

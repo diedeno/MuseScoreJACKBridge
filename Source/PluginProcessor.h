@@ -80,6 +80,9 @@ public:
     bool isJackConnected() const;
 
     uint64_t getDroppedEvents() const;
+
+    // Number of seeks/jumps detected in the host position (diagnostics).
+    uint32_t getSeekCount() const { return seekCount.load(); }
     uint64_t getJackWriteFailures() const;
 
     // Stores the name, tells the host the state changed, and reconnects if
@@ -110,6 +113,7 @@ private:
     JackClient jackClient;
 
     std::atomic<uint64_t> droppedEvents{0};
+    std::atomic<uint32_t> seekCount{0};
     std::atomic<double> hostSampleRate{0.0};
 
     // Connection management (see ConnectionWorker in the .cpp).
