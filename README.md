@@ -10,6 +10,9 @@ MuseScore and it appears as a JACK client with a MIDI output port. Connect
 that port to any synth, sampler or DAW, and let the DAW follow MuseScore's
 playback.
 
+MuseScore always uses MIDI channel 1 by default. You can now select
+a different channel to send to JACK if needed (for example, when using an organ).
+
 Works with a real JACK server (jackd) and with PipeWire's JACK layer.
 
 > **Status: early.** Tested on one setup (MuseScore 4 with PipeWire).
@@ -44,6 +47,7 @@ Copy the resulting `MuseScoreJACKBridge.vst3` folder (it is below
    `Channel`). Use one name per instance, for example one per instrument. The
    name is saved with the score. The window shows the name JACK really
    assigned.
+4. Select the midi channel to send to jack if needed   
 
 ### Following MuseScore in a DAW (JACK transport)
 
