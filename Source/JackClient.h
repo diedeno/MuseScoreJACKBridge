@@ -56,6 +56,11 @@ public:
     // MIDI events JACK refused (period buffer full).
     uint64_t getWriteFailures() const;
 
+    // Diagnostics: how often JACK called our process callback, and how many
+    // queued MIDI events were written into the JACK port buffer.
+    uint64_t getProcessCalls() const;
+    uint64_t getEventsWritten() const;
+
     // Realtime-safe: callable from the host audio thread.
     void requestTransport(bool locate,
                           uint64_t frame,
@@ -113,6 +118,8 @@ private:
     std::atomic<uint32_t> sampleRate{0};
     std::atomic<uint32_t> connectionEpoch{0};
     std::atomic<uint64_t> writeFailures{0};
+    std::atomic<uint64_t> processCalls{0};
+    std::atomic<uint64_t> eventsWritten{0};
 
     // Audio thread -> JACK thread requests.
     std::atomic<uint32_t> pendingFlags{0};

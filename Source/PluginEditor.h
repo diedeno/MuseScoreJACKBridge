@@ -31,6 +31,11 @@ private:
     juce::Label channelNameLabel;
     juce::TextEditor channelNameEditor;
 
+    juce::Label midiChannelLabel;
+    juce::ComboBox midiChannelBox;
+    juce::Label channelsSeenLabel;
+    juce::Label diagLabel;
+
     juce::ToggleButton transportToggle{
         "Control JACK transport (only one instance can)"
     };

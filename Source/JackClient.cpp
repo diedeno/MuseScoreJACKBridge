@@ -9,6 +9,10 @@
 
 namespace
 {
+    // Shared by all instances in the process: serialises opening of JACK
+    // clients.
+    std::mutex gOpenMutex;
+
     constexpr uint32_t kRequestLocate   = 1u << 0;
     constexpr uint32_t kRequestState    = 1u << 1;
     constexpr uint32_t kRequestNotesOff = 1u << 2;
@@ -300,6 +304,10 @@ bool JackClient::connect(const std::string& clientName)
         return true;
     }
 
+    // Several plugin instances may start at the same moment in one process;
+    // open the JACK clients one at a time.
+    std::lock_guard<std::mutex> openLock(gOpenMutex);
+
     closeClient();
 
     return openClient(clientName);
@@ -308,6 +316,7 @@ bool JackClient::connect(const std::string& clientName)
 bool JackClient::reconnect(const std::string& clientName)
 {
     std::lock_guard<std::mutex> lock(lifecycleMutex);
+    std::lock_guard<std::mutex> openLock(gOpenMutex);
 
     closeClient();
 
@@ -355,6 +364,16 @@ uint32_t JackClient::getConnectionEpoch() const
 uint64_t JackClient::getWriteFailures() const
 {
     return writeFailures.load(std::memory_order_relaxed);
+}
+
+uint64_t JackClient::getProcessCalls() const
+{
+    return processCalls.load(std::memory_order_relaxed);
+}
+
+uint64_t JackClient::getEventsWritten() const
+{
+    return eventsWritten.load(std::memory_order_relaxed);
 }
 
 // --------------------------------------------------
@@ -408,6 +427,8 @@ int JackClient::processCallback(jack_nframes_t nframes, void* userData)
 
 int JackClient::process(jack_nframes_t nframes)
 {
+    processCalls.fetch_add(1, std::memory_order_relaxed);
+
     if (!midiOutput)
         return 0;
 
@@ -451,6 +472,8 @@ int JackClient::process(jack_nframes_t nframes)
     {
         if (api.midi_event_write(buffer, 0, packet.data, packet.size) != 0)
             writeFailures.fetch_add(1, std::memory_order_relaxed);
+        else
+            eventsWritten.fetch_add(1, std::memory_order_relaxed);
     }
 
     if (flags & kRequestNotesOff)

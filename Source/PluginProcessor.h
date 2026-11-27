@@ -81,9 +81,24 @@ public:
 
     uint64_t getDroppedEvents() const;
 
+    // MIDI channel rewrite: 0 = pass through as sent by the host,
+    // 1..16 = force every channel message onto that channel.
+    void setOutputChannel(int channel);
+    int getOutputChannel() const { return outputChannel.load(); }
+
+    // Bit n set = channel n+1 has been seen coming from the host
+    // (before any rewrite).
+    uint16_t getChannelsSeenMask() const { return channelsSeen.load(); }
+
     // Number of seeks/jumps detected in the host position (diagnostics).
     uint32_t getSeekCount() const { return seekCount.load(); }
     uint64_t getJackWriteFailures() const;
+
+    // Diagnostics for the window: events queued from the host, JACK process
+    // cycles, and events written into the JACK port.
+    uint64_t getEventsReceived() const { return eventsReceived.load(); }
+    uint64_t getJackProcessCalls() const { return jackClient.getProcessCalls(); }
+    uint64_t getJackEventsWritten() const { return jackClient.getEventsWritten(); }
 
     // Stores the name, tells the host the state changed, and reconnects if
     // the name differs from the one currently registered.
@@ -114,6 +129,9 @@ private:
 
     std::atomic<uint64_t> droppedEvents{0};
     std::atomic<uint32_t> seekCount{0};
+    std::atomic<uint64_t> eventsReceived{0};
+    std::atomic<int> outputChannel{0};
+    std::atomic<uint16_t> channelsSeen{0};
     std::atomic<double> hostSampleRate{0.0};
 
     // Connection management (see ConnectionWorker in the .cpp).

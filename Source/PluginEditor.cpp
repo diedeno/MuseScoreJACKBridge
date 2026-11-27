@@ -6,7 +6,7 @@ MuseScoreBridgeEditor::MuseScoreBridgeEditor(
     : AudioProcessorEditor(&p),
       processor(p)
 {
-    setSize(400, 300);
+    setSize(460, 410);
 
     titleLabel.setText(
         "MuseScore JACK Bridge",
@@ -66,6 +66,47 @@ MuseScoreBridgeEditor::MuseScoreBridgeEditor(
     channelNameEditor.onFocusLost = [this]() { commitName(); };
 
     addAndMakeVisible(channelNameEditor);
+
+    midiChannelLabel.setText(
+        "MIDI channel:",
+        juce::dontSendNotification
+    );
+
+    midiChannelLabel.setJustificationType(
+        juce::Justification::centredLeft
+    );
+
+    addAndMakeVisible(midiChannelLabel);
+
+    // Item id 1 = pass through, id n+1 = force channel n.
+    midiChannelBox.addItem("Pass through (as MuseScore sends)", 1);
+
+    for (int channel = 1; channel <= 16; ++channel)
+        midiChannelBox.addItem("Channel " + juce::String(channel), channel + 1);
+
+    midiChannelBox.setSelectedId(
+        processor.getOutputChannel() + 1,
+        juce::dontSendNotification
+    );
+
+    midiChannelBox.onChange = [this]()
+    {
+        processor.setOutputChannel(midiChannelBox.getSelectedId() - 1);
+    };
+
+    addAndMakeVisible(midiChannelBox);
+
+    channelsSeenLabel.setJustificationType(
+        juce::Justification::centred
+    );
+
+    addAndMakeVisible(channelsSeenLabel);
+
+    diagLabel.setJustificationType(
+        juce::Justification::centred
+    );
+
+    addAndMakeVisible(diagLabel);
 
     transportToggle.setToggleState(
         processor.isTransportMaster(),
@@ -146,12 +187,29 @@ void MuseScoreBridgeEditor::resized()
 
     area.removeFromTop(10);
 
+    {
+        auto row = area.removeFromTop(28);
+
+        midiChannelLabel.setBounds(row.removeFromLeft(110));
+        midiChannelBox.setBounds(row);
+    }
+
+    area.removeFromTop(10);
+
     statusLabel.setBounds(
         area.removeFromTop(30)
     );
 
     infoLabel.setBounds(
         area.removeFromTop(30)
+    );
+
+    channelsSeenLabel.setBounds(
+        area.removeFromTop(26)
+    );
+
+    diagLabel.setBounds(
+        area.removeFromTop(26)
     );
 
     transportToggle.setBounds(
@@ -175,6 +233,51 @@ void MuseScoreBridgeEditor::timerCallback()
         processor.isTransportMaster(),
         juce::dontSendNotification
     );
+
+    // Keep the selector in step with a restored state.
+    if (midiChannelBox.getSelectedId() != processor.getOutputChannel() + 1)
+    {
+        midiChannelBox.setSelectedId(
+            processor.getOutputChannel() + 1,
+            juce::dontSendNotification
+        );
+    }
+
+    // Where do events get lost? Each number should keep growing while the
+    // score plays: from MuseScore -> JACK cycles -> written to the port.
+    diagLabel.setText(
+        "From MuseScore: "
+            + juce::String(static_cast<juce::int64>(processor.getEventsReceived()))
+            + "  |  JACK cycles: "
+            + juce::String(static_cast<juce::int64>(processor.getJackProcessCalls()))
+            + "  |  Sent to JACK: "
+            + juce::String(static_cast<juce::int64>(processor.getJackEventsWritten())),
+        juce::dontSendNotification
+    );
+
+    // Which MIDI channels MuseScore has sent so far (before any rewrite).
+    {
+        const auto seen = processor.getChannelsSeenMask();
+
+        juce::String list;
+
+        for (int channel = 0; channel < 16; ++channel)
+        {
+            if ((seen & (1u << channel)) != 0)
+            {
+                if (list.isNotEmpty())
+                    list << ", ";
+
+                list << (channel + 1);
+            }
+        }
+
+        channelsSeenLabel.setText(
+            "Channels seen from MuseScore: "
+                + (list.isEmpty() ? juce::String("none yet") : list),
+            juce::dontSendNotification
+        );
+    }
 
     if (processor.isJackConnected())
     {

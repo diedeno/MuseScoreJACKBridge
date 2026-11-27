@@ -199,6 +199,25 @@ bool MuseScoreBridgeProcessor::isTransportMaster() const
     return gTransportOwner.load() == this;
 }
 
+void MuseScoreBridgeProcessor::setOutputChannel(int channel)
+{
+    const int clamped = juce::jlimit(0, 16, channel);
+
+    if (clamped == outputChannel.load())
+        return;
+
+    outputChannel.store(clamped);
+
+    // Notes that are still sounding would otherwise get their note-off on
+    // the new channel and hang on the old one.
+    jackClient.requestAllNotesOff();
+
+    updateHostDisplay(
+        juce::AudioProcessor::ChangeDetails()
+            .withNonParameterStateChanged(true)
+    );
+}
+
 // --------------------------------------------------
 // Lifecycle
 // --------------------------------------------------
@@ -386,9 +405,39 @@ void MuseScoreBridgeProcessor::processBlock(
                 packet.data
             );
 
+            // Channel voice messages (0x80..0xEF) carry a channel in the
+            // low nibble. Record what the host sent, then optionally
+            // force a fixed channel. System messages (0xF0..) are untouched.
+            const uint8_t status = packet.data[0];
+
+            if (status >= 0x80 && status < 0xF0)
+            {
+                channelsSeen.fetch_or(
+                    static_cast<uint16_t>(1u << (status & 0x0F)),
+                    std::memory_order_relaxed
+                );
+
+                const int forced =
+                    outputChannel.load(std::memory_order_relaxed);
+
+                if (forced > 0)
+                {
+                    packet.data[0] = static_cast<uint8_t>(
+                        (status & 0xF0) | (forced - 1)
+                    );
+                }
+            }
+
             if (!midiQueue.push(packet))
             {
                 droppedEvents.fetch_add(
+                    1,
+                    std::memory_order_relaxed
+                );
+            }
+            else
+            {
+                eventsReceived.fetch_add(
                     1,
                     std::memory_order_relaxed
                 );
@@ -492,6 +541,7 @@ void MuseScoreBridgeProcessor::getStateInformation(
 
     xml.setAttribute("channelName", getChannelName());
     xml.setAttribute("transportMaster", isTransportMaster() ? 1 : 0);
+    xml.setAttribute("outputChannel", getOutputChannel());
 
     copyXmlToBinary(xml, destination);
 }
@@ -515,6 +565,10 @@ void MuseScoreBridgeProcessor::setStateInformation(
 
         channelName = restored.isEmpty() ? "Channel" : restored;
     }
+
+    outputChannel.store(
+        juce::jlimit(0, 16, xml->getIntAttribute("outputChannel", 0))
+    );
 
     // Off by default. If several saved instances ask for the transport, the
     // first one wins; the others stay off.
